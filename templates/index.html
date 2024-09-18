@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유튜브 한국어 더빙</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        #progress-bar {
+            width: 300px;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        #progress {
+            width: 0;
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <h1>유튜브 한국어 더빙</h1>
+    <form id="youtube-form">
+        <input type="text" id="youtube-url" placeholder="유튜브 URL 입력" required>
+        <button type="submit">변환</button>
+    </form>
+    <div id="progress-bar"><div id="progress"></div></div>
+    <div id="status"></div>
+    <div id="audio-player" style="display: none;">
+        <audio controls>
+            <source id="audio-source" src="" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+    <script>
+        const socket = io();
+        const progressBar = document.getElementById('progress');
+        const statusDiv = document.getElementById('status');
+
+        socket.on('progress_update', function(data) {
+            progressBar.style.width = `${data.progress}%`;
+            statusDiv.textContent = `${data.step} (${Math.round(data.progress)}%)`;
+        });
+
+        document.getElementById('youtube-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const url = document.getElementById('youtube-url').value;
+            statusDiv.textContent = '처리 시작...';
+            progressBar.style.width = '0%';
+            document.getElementById('audio-player').style.display = 'none';
+            
+            fetch('http://localhost:5000/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'youtube_url=' + encodeURIComponent(url)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('audio-source').src = 'http://localhost:5000/audio/' + data.audio_file;
+                    document.getElementById('audio-player').style.display = 'block';
+                    document.querySelector('audio').load();
+                    statusDiv.textContent = '변환 완료!';
+                } else {
+                    statusDiv.textContent = '오류 발생: ' + data.message;
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '오류 발생: ' + error.message;
+            });
+        });
+    </script>
+</body>
+</html>
